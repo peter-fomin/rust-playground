@@ -7,9 +7,10 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn new(args: &mut env::Args, ) -> Result<Self, &str> {
+    pub fn new(mut args: env::Args) -> Result<Self, &'static str> {
+        args.next();
         Ok(Self {
-            query: args.skip(1).next().ok_or_else(|| "No query input")?,
+            query: args.next().ok_or_else(|| "No query input")?,
             filename: args.next().ok_or_else(|| "No filename input")?,
             case_sensitive: env::var("CASE_INSENSITIVE").is_err(),
         })
