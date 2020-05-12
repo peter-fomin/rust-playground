@@ -1,50 +1,41 @@
 #[derive(Debug, PartialEq)]
-pub struct DNA {
-    dna: String,
-}
+pub struct DNA(String);
 
 #[derive(Debug, PartialEq)]
-pub struct RNA {
-    rna: String,
-}
+pub struct RNA(String);
 
 impl DNA {
     const NUCLEOTIDES: &'static str = "ACTG";
 
-    pub fn new(dna: &str) -> Result<Self, usize> {
-        match dna.chars().position(|c| !Self::NUCLEOTIDES.contains(c)) {
-            Some(position) => Err(position),
-            None => Ok(Self {
-                dna: dna.to_string(),
-            }),
-        }
+    pub fn new(sequence: &str) -> Result<Self, usize> {
+        Ok(Self(check_sequence(sequence, Self::NUCLEOTIDES)?))
     }
 
     pub fn into_rna(self) -> RNA {
-        RNA {
-            rna: self
-                .dna
-                .chars()
-                .map(|c| match c {
-                    'G' => 'C',
-                    'C' => 'G',
-                    'T' => 'A',
-                    'A' => 'U',
-                    _ => '?',
-                })
-                .collect(),
-        }
+        RNA(self
+            .0
+            .chars()
+            .map(|nuc| {
+                RNA::NUCLEOTIDES
+                    .chars()
+                    .nth(Self::NUCLEOTIDES.find(nuc).unwrap())
+                    .unwrap()
+            })
+            .collect())
     }
 }
 
 impl RNA {
     const NUCLEOTIDES: &'static str = "UGAC";
-    pub fn new(rna: &str) -> Result<Self, usize> {
-        match rna.chars().position(|c| !Self::NUCLEOTIDES.contains(c)) {
-            Some(position) => Err(position),
-            None => Ok(Self {
-                rna: rna.to_string(),
-            }),
-        }
+
+    pub fn new(sequence: &str) -> Result<Self, usize> {
+        Ok(Self(check_sequence(sequence, Self::NUCLEOTIDES)?))
+    }
+}
+
+fn check_sequence(sequence: &str, nucleotides: &str) -> Result<String, usize> {
+    match sequence.chars().position(|c| !nucleotides.contains(c)) {
+        Some(position) => Err(position),
+        None => Ok(sequence.to_string()),
     }
 }
