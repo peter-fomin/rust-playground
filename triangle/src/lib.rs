@@ -1,3 +1,6 @@
+use std::ops::Add;
+use std::cmp::Ordering;
+
 pub struct Triangle(TriangleType);
 
 #[derive(PartialEq)]
@@ -10,9 +13,9 @@ enum TriangleType {
 use TriangleType::{Equilateral, Scalene, Isosceles};
 
 impl Triangle {
-    pub fn build(mut sides: [u64; 3]) -> Option<Triangle> {
-        sides.sort();
-        if sides.iter().any(|&a| a <= 0_u64) || sides[2] > sides[0] + sides[1] {
+    pub fn build<T: PartialOrd + Default + Copy + Add<Output = T>>(mut sides: [T; 3]) -> Option<Triangle> {
+        sides.sort_by(|a, b| a.partial_cmp(b).unwrap_or(Ordering::Equal));
+        if sides.iter().any(|&a| a <= T::default()) || sides[2] > sides[0] + sides[1] {
             return None
         } else {
             match (sides[0] == sides[1], sides[1] == sides[2], sides[2] == sides[0]){
