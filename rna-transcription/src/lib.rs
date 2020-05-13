@@ -30,12 +30,21 @@ impl RNA {
 
 impl Acid {
     fn nucleotides(&self) -> &'static [char] {
-        // arrays have to be in transcription order
+        // Arrays have to be in transcription order.
         match self {
             Self::DNA => &['A', 'C', 'T', 'G'],
-            // transcribes: v    v    v    v
+            // Transcribes: v    v    v    v
             Self::RNA => &['U', 'G', 'A', 'C'],
         }
+    }
+
+    fn nucleotide_to_rna(nuc: &mut char) {
+        // Transcribes one nucleotide according to the order in nucleotides() fn.
+        *nuc = Acid::RNA.nucleotides()[Acid::DNA
+            .nucleotides()
+            .iter()
+            .position(|c| c == nuc)
+            .unwrap()];
     }
 }
 
@@ -54,18 +63,8 @@ impl NucleicAcid {
     }
 
     pub fn into_rna(mut self) -> Self {
-        for nucleotide in self.sequence.iter_mut() {
-            Self::nucleotide_to_rna(nucleotide);
-        }
+        self.sequence.iter_mut().for_each(Acid::nucleotide_to_rna);
         self.acid = Acid::RNA;
         self
-    }
-
-    fn nucleotide_to_rna(nuc: &mut char) {
-        *nuc = Acid::RNA.nucleotides()[Acid::DNA
-            .nucleotides()
-            .iter()
-            .position(|c| c == nuc)
-            .unwrap()];
     }
 }
