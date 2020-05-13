@@ -1,41 +1,71 @@
 #[derive(Debug, PartialEq)]
-pub struct DNA(String);
+pub struct DNA;
 
 #[derive(Debug, PartialEq)]
-pub struct RNA(String);
+pub struct RNA;
+
+#[derive(Debug, PartialEq)]
+pub struct NucleicAcid {
+    sequence: Vec<char>,
+    acid: Acid,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum Acid {
+    DNA,
+    RNA,
+}
 
 impl DNA {
-    const NUCLEOTIDES: &'static str = "ACTG";
-
-    pub fn new(sequence: &str) -> Result<Self, usize> {
-        Ok(Self(check_sequence(sequence, Self::NUCLEOTIDES)?))
-    }
-
-    pub fn into_rna(self) -> RNA {
-        RNA(self
-            .0
-            .chars()
-            .map(|nuc| {
-                RNA::NUCLEOTIDES
-                    .chars()
-                    .nth(Self::NUCLEOTIDES.find(nuc).unwrap())
-                    .unwrap()
-            })
-            .collect())
+    pub fn new(sequence: &str) -> Result<NucleicAcid, usize> {
+        NucleicAcid::new(sequence, Acid::DNA)
     }
 }
 
 impl RNA {
-    const NUCLEOTIDES: &'static str = "UGAC";
-
-    pub fn new(sequence: &str) -> Result<Self, usize> {
-        Ok(Self(check_sequence(sequence, Self::NUCLEOTIDES)?))
+    pub fn new(sequence: &str) -> Result<NucleicAcid, usize> {
+        NucleicAcid::new(sequence, Acid::RNA)
     }
 }
 
-fn check_sequence(sequence: &str, nucleotides: &str) -> Result<String, usize> {
-    match sequence.chars().position(|c| !nucleotides.contains(c)) {
-        Some(position) => Err(position),
-        None => Ok(sequence.to_string()),
+impl Acid {
+    fn nucleotides(&self) -> &'static [char] {
+        // arrays have to be in transcription order
+        match self {
+            Self::DNA => &['A', 'C', 'T', 'G'],
+            // transcribes: v    v    v    v
+            Self::RNA => &['U', 'G', 'A', 'C'],
+        }
+    }
+}
+
+impl NucleicAcid {
+    pub fn new(sequence: &str, acid: Acid) -> Result<Self, usize> {
+        match sequence
+            .chars()
+            .position(|c| !acid.nucleotides().contains(&c))
+        {
+            Some(position) => Err(position),
+            None => Ok(Self {
+                sequence: sequence.chars().collect(),
+                acid,
+            }),
+        }
+    }
+
+    pub fn into_rna(mut self) -> Self {
+        for nucleotide in self.sequence.iter_mut() {
+            Self::nucleotide_to_rna(nucleotide);
+        }
+        self.acid = Acid::RNA;
+        self
+    }
+
+    fn nucleotide_to_rna(nuc: &mut char) {
+        *nuc = Acid::RNA.nucleotides()[Acid::DNA
+            .nucleotides()
+            .iter()
+            .position(|c| c == nuc)
+            .unwrap()];
     }
 }
