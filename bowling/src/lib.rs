@@ -29,12 +29,15 @@ pub struct BowlingGame {
 }
 
 impl BowlingGame {
+    const NUM_FRAMES: u16 = 10;
+    const NUM_PINS: u16 = 10;
+
     pub fn new() -> Self {
         Self {
             score: 0,
             frame: 1,
             throw: 1,
-            pins: 10,
+            pins: Self::NUM_PINS,
             prev_frame: FrameResult::Open,
             state: GameState::Regular,
         }
@@ -64,18 +67,18 @@ impl BowlingGame {
 
         match &self.state {
             GameState::Regular => {
-                if self.pins == 0 || self.throw == 2 {
-                    self.prev_frame = if self.throw == 1 {
+                if self.pins == 0 || self.throw == 2 { // end of a frame
+                    self.prev_frame = if self.throw == 1 { // strike
                         match self.prev_frame {
                             FrameResult::Strike | FrameResult::StrikeSeq => FrameResult::StrikeSeq,
                             _ => FrameResult::Strike,
                         }
-                    } else if self.pins == 0 {
+                    } else if self.pins == 0 { // spare
                         FrameResult::Spare
-                    } else {
+                    } else { //open
                         FrameResult::Open
                     };
-                    if self.frame == 10 {
+                    if self.frame == Self::NUM_FRAMES { // end of game frames
                         self.state = match self.prev_frame {
                             FrameResult::Strike | FrameResult::StrikeSeq => GameState::TwoFillBalls,
                             FrameResult::Spare => GameState::FillBall,
@@ -84,8 +87,8 @@ impl BowlingGame {
                     }
                     self.frame += 1;
                     self.throw = 1;
-                    self.pins = 10;
-                } else {
+                    self.pins = Self::NUM_PINS;
+                } else { // not end of a frame
                     self.throw += 1;
                 }
             }
@@ -95,8 +98,8 @@ impl BowlingGame {
                     self.state = GameState::Finished;
                 } else {
                     self.state = GameState::FillBall;
-                    if pins == 10 {
-                        self.pins = 10;
+                    if pins == Self::NUM_PINS {
+                        self.pins = Self::NUM_PINS;
                     }
                     self.throw += 1;
                 }
