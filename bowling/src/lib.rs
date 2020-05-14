@@ -4,39 +4,45 @@ pub enum Error {
     GameComplete,
 }
 
-pub enum GameFlags {
+pub enum FrameResult {
     Open,
     Strike,
-    StrikeTwice,
+    StrikeSeq,
     Spare,
+}
+
+#[derive(PartialEq)]
+pub enum GameState {
+    Regular,
     FillBall,
     TwoFillBalls,
-    TwoFillBallsAndStrike,
     Finished,
 }
 
 pub struct BowlingGame {
     score: u16,
-    frames: u16,
-    throws: u16,
+    frame: u16,
+    throw: u16,
     pins: u16,
-    flags: GameFlags,
+    prev_frame: FrameResult,
+    state: GameState,
 }
 
 impl BowlingGame {
     pub fn new() -> Self {
         Self {
             score: 0,
-            frames: 0,
-            throws: 0,
+            frame: 1,
+            throw: 1,
             pins: 10,
-            flags: GameFlags::Open,
+            prev_frame: FrameResult::Open,
+            state: GameState::Regular,
         }
     }
 
     pub fn score(&self) -> Option<u16> {
-        match self.flags {
-            GameFlags::Finished => Some(self.score),
+        match self.state {
+            GameState::Finished => Some(self.score),
             _ => None,
         }
     }
@@ -44,71 +50,68 @@ impl BowlingGame {
     pub fn roll(&mut self, pins: u16) -> Result<(), Error> {
         if self.pins < pins {
             return Err(Error::NotEnoughPinsLeft);
-        } else if let GameFlags::Finished = self.flags {
+        } else if let GameState::Finished = self.state {
             return Err(Error::GameComplete);
-        } else if let GameFlags::FillBall = self.flags {
-            self.advance_score(pins);
-            self.advance_flags(pins);
-        } else if let GameFlags::TwoFillBalls = self.flags {
-            self.advance_score(pins);
-            self.advance_flags(pins);
-            if pins < 10 {
-                self.pins -= pins;
-            }
-        } else if let GameFlags::TwoFillBallsAndStrike = self.flags {
-            self.advance_score(pins);
-            self.advance_flags(pins);
-            if pins < 10 {
-                self.pins -= pins;
-            }
         } else {
             self.roll_ball(pins);
         }
-
         Ok(())
     }
 
     fn roll_ball(&mut self, pins: u16) {
-        self.throws += 1;
         self.pins -= pins;
         self.advance_score(pins);
-        self.advance_flags(pins);
 
-        if self.throws == 2 || self.pins == 0 {
-            self.advance_frame()
+        match &self.state {
+            GameState::Regular => {
+                if self.pins == 0 || self.throw == 2 {
+                    self.prev_frame = if self.throw == 1 {
+                        match self.prev_frame {
+                            FrameResult::Strike | FrameResult::StrikeSeq => FrameResult::StrikeSeq,
+                            _ => FrameResult::Strike,
+                        }
+                    } else if self.pins == 0 {
+                        FrameResult::Spare
+                    } else {
+                        FrameResult::Open
+                    };
+                    if self.frame == 10 {
+                        self.state = match self.prev_frame {
+                            FrameResult::Strike | FrameResult::StrikeSeq => GameState::TwoFillBalls,
+                            FrameResult::Spare => GameState::FillBall,
+                            _ => GameState::Finished,
+                        };
+                    } 
+                    self.frame += 1;
+                    self.throw = 1;
+                    self.pins = 10;
+                } else {
+                    self.throw += 1;
+                }
+            }
+            GameState::FillBall => self.state = GameState::Finished,
+            GameState::TwoFillBalls => {
+                
+                if self.throw == 2 {
+                    self.state = GameState::Finished;
+                } else {
+                    self.state = GameState::FillBall;
+                    if pins ==10 {
+                        self.pins = 10;
+                    }
+                    self.throw += 1;
+                }
+            }
+            GameState::Finished => (),
         }
+        
     }
 
     fn advance_score(&mut self, pins: u16) {
-        match self.flags {
-            GameFlags::StrikeTwice => self.score += 3 * pins,
-            GameFlags::Strike | GameFlags::Spare | GameFlags::TwoFillBallsAndStrike => self.score += 2 * pins,
+        match (&self.state, &self.prev_frame, &self.throw) {
+            (GameState::Regular, FrameResult::StrikeSeq, 1) => self.score += 3 * pins,
+            (GameState::Regular, FrameResult::StrikeSeq, 2) | (GameState::Regular, FrameResult::Strike, _) | (GameState::Regular, FrameResult::Spare, 1) | (GameState::TwoFillBalls, FrameResult::StrikeSeq, _) => self.score += 2 * pins,
             _ => self.score += pins,
-        }
-    }
-
-    fn advance_flags(&mut self, pins: u16) {
-        self.flags = match (&self.flags, pins, self.pins) {
-            (GameFlags::StrikeTwice, 10, 0) | (GameFlags::Strike, 10, 0) => GameFlags::StrikeTwice,
-            (_, 10, 0) => GameFlags::Strike,
-            (GameFlags::Strike, _, _) | (GameFlags::StrikeTwice, _, _) | (_, _, 0) => GameFlags::Spare,
-            (GameFlags::TwoFillBalls, _, _) | (GameFlags::TwoFillBallsAndStrike, _, _) => GameFlags::FillBall,
-            (GameFlags::FillBall, _, _) => GameFlags::Finished,
-            _ => GameFlags::Open,
-        }
-
-    }
-
-    fn advance_frame(&mut self) {
-        self.pins = 10;
-        self.frames += 1;
-        self.throws = 0;
-        match (self.frames, &self.flags) {
-            (10, GameFlags::StrikeTwice) => self.flags = GameFlags::TwoFillBallsAndStrike,
-            (10, GameFlags::Strike) => self.flags = GameFlags::TwoFillBalls,
-            (10, GameFlags::Spare) => self.flags = GameFlags::FillBall,
-            (10, _) => self.flags = GameFlags::Finished,
-            _ => (),
         }
     }
 }
