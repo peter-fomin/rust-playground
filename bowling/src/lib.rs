@@ -81,7 +81,7 @@ impl BowlingGame {
                             FrameResult::Spare => GameState::FillBall,
                             _ => GameState::Finished,
                         };
-                    } 
+                    }
                     self.frame += 1;
                     self.throw = 1;
                     self.pins = 10;
@@ -91,12 +91,11 @@ impl BowlingGame {
             }
             GameState::FillBall => self.state = GameState::Finished,
             GameState::TwoFillBalls => {
-                
                 if self.throw == 2 {
                     self.state = GameState::Finished;
                 } else {
                     self.state = GameState::FillBall;
-                    if pins ==10 {
+                    if pins == 10 {
                         self.pins = 10;
                     }
                     self.throw += 1;
@@ -104,13 +103,15 @@ impl BowlingGame {
             }
             GameState::Finished => (),
         }
-        
     }
 
     fn advance_score(&mut self, pins: u16) {
         match (&self.state, &self.prev_frame, &self.throw) {
             (GameState::Regular, FrameResult::StrikeSeq, 1) => self.score += 3 * pins,
-            (GameState::Regular, FrameResult::StrikeSeq, 2) | (GameState::Regular, FrameResult::Strike, _) | (GameState::Regular, FrameResult::Spare, 1) | (GameState::TwoFillBalls, FrameResult::StrikeSeq, _) => self.score += 2 * pins,
+            (GameState::Regular, FrameResult::StrikeSeq, 2)
+            | (GameState::Regular, FrameResult::Strike, _)
+            | (GameState::Regular, FrameResult::Spare, 1)
+            | (GameState::TwoFillBalls, FrameResult::StrikeSeq, _) => self.score += 2 * pins,
             _ => self.score += pins,
         }
     }
