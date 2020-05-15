@@ -39,7 +39,10 @@ impl PartialOrd for Team {
 
 impl PartialEq for Team {
     fn eq(&self, other: &Self) -> bool {
-        self.points() == other.points() && self.wins == other.wins
+        self.points() == other.points()
+            && self.wins == other.wins
+            && self.draws == other.draws
+            && self.name == other.name
     }
 }
 
