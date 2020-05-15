@@ -4,28 +4,46 @@ pub enum Error {
     GameComplete,
 }
 
-pub enum FrameResult {
-    Open,
-    Strike,
-    StrikeSeq,
-    Spare,
+pub struct BowlingScore {
+    pub score: u16,
+    extra_rolls: u16,
 }
 
-#[derive(PartialEq)]
-pub enum GameState {
-    Regular,
-    FillBall,
-    TwoFillBalls,
-    Finished,
+impl BowlingScore {
+    pub fn new() -> Self {
+        Self {
+            score: 0,
+            extra_rolls: 0,
+        }
+    }
+
+    pub fn add_extra_score(&mut self, rolls: u16) {
+        // after a strike or a spare we score extra for next rolls
+        self.extra_rolls += rolls;
+    }
+
+    pub fn add_pins(&mut self, pins: u16) {
+        match &self.extra_rolls {
+            3 => {
+                self.score += 3 * pins;
+                self.extra_rolls -= 2;
+            }
+            2 | 1 => {
+                self.score += 2 * pins;
+                self.extra_rolls -= 1;
+            }
+            _ => self.score += pins,
+        }
+    }
 }
 
 pub struct BowlingGame {
-    score: u16,
-    frame: u16,
-    throw: u16,
+    score: BowlingScore,
+    frames: u16,
+    throws: u16,
     pins: u16,
-    prev_frame: FrameResult,
-    state: GameState,
+    fill_balls: u16,
+    is_finished: bool,
 }
 
 impl BowlingGame {
@@ -34,88 +52,78 @@ impl BowlingGame {
 
     pub fn new() -> Self {
         Self {
-            score: 0,
-            frame: 1,
-            throw: 1,
+            score: BowlingScore::new(),
+            frames: 0,
+            throws: 0,
             pins: Self::NUM_PINS,
-            prev_frame: FrameResult::Open,
-            state: GameState::Regular,
+            fill_balls: 0,
+            is_finished: false,
         }
     }
 
     pub fn score(&self) -> Option<u16> {
-        match self.state {
-            GameState::Finished => Some(self.score),
-            _ => None,
+        if self.is_finished {
+            Some(self.score.score)
+        } else {
+            None
         }
     }
 
     pub fn roll(&mut self, pins: u16) -> Result<(), Error> {
         if self.pins < pins {
             return Err(Error::NotEnoughPinsLeft);
-        } else if let GameState::Finished = self.state {
+        } else if self.is_finished {
             return Err(Error::GameComplete);
-        } else {
-            self.roll_ball(pins);
+        } else if self.frames < Self::NUM_FRAMES {
+            // Regular game
+            self.score.add_pins(pins);
+            if pins == Self::NUM_PINS {
+                // strike
+                if self.frames < Self::NUM_FRAMES - 1 {
+                    // fill balls instead of extra score in the last frame
+                    self.score.add_extra_score(2);
+                } else {
+                    self.fill_balls = 2;
+                }
+                self.new_frame();
+            } else if self.pins == pins {
+                // spare
+                if self.frames < Self::NUM_FRAMES - 1 {
+                    // fill balls instead of extra score in the last frame
+                    self.score.add_extra_score(1);
+                } else {
+                    self.fill_balls = 1;
+                }
+                self.new_frame();
+            } else if self.throws == 1 {
+                // next frame
+                self.new_frame();
+                if self.frames == Self::NUM_FRAMES {
+                    self.is_finished = true;
+                }
+            } else {
+                // next throw
+                self.pins -= pins;
+                self.throws += 1;
+            }
+        } else if self.frames == Self::NUM_FRAMES && self.fill_balls > 0 {
+            // Fill balls
+            self.score.add_pins(pins);
+            if self.fill_balls == 2 && pins < Self::NUM_PINS {
+                // if first fill ball did not strike
+                self.pins -= pins;
+            }
+            self.fill_balls -= 1;
+            if self.fill_balls == 0 {
+                self.is_finished = true;
+            }
         }
         Ok(())
     }
 
-    fn roll_ball(&mut self, pins: u16) {
-        self.pins -= pins;
-        self.advance_score(pins);
-
-        match &self.state {
-            GameState::Regular => {
-                if self.pins == 0 || self.throw == 2 { // end of a frame
-                    self.prev_frame = if self.throw == 1 { // strike
-                        match self.prev_frame {
-                            FrameResult::Strike | FrameResult::StrikeSeq => FrameResult::StrikeSeq,
-                            _ => FrameResult::Strike,
-                        }
-                    } else if self.pins == 0 { // spare
-                        FrameResult::Spare
-                    } else { //open
-                        FrameResult::Open
-                    };
-                    if self.frame == Self::NUM_FRAMES { // end of game frames
-                        self.state = match self.prev_frame {
-                            FrameResult::Strike | FrameResult::StrikeSeq => GameState::TwoFillBalls,
-                            FrameResult::Spare => GameState::FillBall,
-                            _ => GameState::Finished,
-                        };
-                    }
-                    self.frame += 1;
-                    self.throw = 1;
-                    self.pins = Self::NUM_PINS;
-                } else { // not end of a frame
-                    self.throw += 1;
-                }
-            }
-            GameState::FillBall => self.state = GameState::Finished,
-            GameState::TwoFillBalls => {
-                if self.throw == 2 {
-                    self.state = GameState::Finished;
-                } else {
-                    self.state = GameState::FillBall;
-                    if pins == Self::NUM_PINS {
-                        self.pins = Self::NUM_PINS;
-                    }
-                    self.throw += 1;
-                }
-            }
-            GameState::Finished => (),
-        }
-    }
-
-    fn advance_score(&mut self, pins: u16) {
-        match (&self.state, &self.prev_frame, &self.throw) {
-            (GameState::Regular, FrameResult::StrikeSeq, 1) => self.score += 3 * pins,
-            (GameState::Regular, FrameResult::StrikeSeq, 2)
-            | (GameState::Regular, FrameResult::Strike, _)
-            | (GameState::Regular, FrameResult::Spare, 1)
-            | (GameState::TwoFillBalls, FrameResult::StrikeSeq, _) => self.score += 2 * pins,
-            _ => self.score += pins,
-        }
+    fn new_frame(&mut self) {
+        self.frames += 1;
+        self.pins = Self::NUM_PINS;
+        self.throws = 0;
     }
 }
