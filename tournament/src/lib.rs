@@ -5,16 +5,54 @@ macro_rules! output_format {
     };
 }
 
-use std::collections::BTreeMap;
+use std::cmp::Ordering;
+use std::collections::HashMap;
 
-#[derive(Default)]
-pub struct Stats {
+#[derive(Eq)]
+pub struct Team {
+    pub name: String,
     pub wins: i32,
     pub draws: i32,
     pub losses: i32,
 }
 
-impl Stats {
+impl Ord for Team {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match self.points().cmp(&other.points()) {
+            Ordering::Equal => match self.wins.cmp(&other.wins) {
+                Ordering::Equal => match self.draws.cmp(&other.draws) {
+                    Ordering::Equal => self.name.cmp(&other.name),
+                    any => any,
+                },
+                any => any,
+            },
+            any => any,
+        }
+    }
+}
+
+impl PartialOrd for Team {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl PartialEq for Team {
+    fn eq(&self, other: &Self) -> bool {
+        self.points() == other.points() && self.wins == other.wins
+    }
+}
+
+impl Team {
+    pub fn new(name: &str) -> Self {
+        Self {
+            name: name.to_string(),
+            wins: 0,
+            draws: 0,
+            losses: 0,
+        }
+    }
+
     pub fn points(&self) -> i32 {
         self.wins * 3 + self.draws
     }
@@ -26,37 +64,57 @@ impl Stats {
 
 pub fn tally(match_results: &str) -> String {
     // process input
-    let mut teams: BTreeMap<&str, Stats> = BTreeMap::new();
+    let mut teams: HashMap<&str, Team> = HashMap::new();
     for line in match_results.lines() {
         let input: Vec<&str> = line.split(';').collect();
         match input[2] {
             "win" => {
-                teams.entry(input[0]).or_insert_with(Stats::default).wins += 1;
-                teams.entry(input[1]).or_insert_with(Stats::default).losses += 1;
+                teams
+                    .entry(input[0])
+                    .or_insert_with(|| Team::new(input[0]))
+                    .wins += 1;
+                teams
+                    .entry(input[1])
+                    .or_insert_with(|| Team::new(input[1]))
+                    .losses += 1;
             }
             "draw" => {
-                teams.entry(input[0]).or_insert_with(Stats::default).draws += 1;
-                teams.entry(input[1]).or_insert_with(Stats::default).draws += 1;
+                teams
+                    .entry(input[0])
+                    .or_insert_with(|| Team::new(input[0]))
+                    .draws += 1;
+                teams
+                    .entry(input[1])
+                    .or_insert_with(|| Team::new(input[1]))
+                    .draws += 1;
             }
             "loss" => {
-                teams.entry(input[0]).or_insert_with(Stats::default).losses += 1;
-                teams.entry(input[1]).or_insert_with(Stats::default).wins += 1;
+                teams
+                    .entry(input[0])
+                    .or_insert_with(|| Team::new(input[0]))
+                    .losses += 1;
+                teams
+                    .entry(input[1])
+                    .or_insert_with(|| Team::new(input[1]))
+                    .wins += 1;
             }
             _ => panic!("Bad result input"),
         }
     }
     // format results
+    let mut teams: Vec<Team> = teams.into_iter().map(|(_, team)| team).collect();
+    teams.sort();
     let mut results_table = Vec::new();
     results_table.push(format!(output_format!(), "Team", "MP", "W", "D", "L", "P"));
-    for (name, stats) in teams {
+    for team in teams {
         results_table.push(format!(
             output_format!(),
-            name,
-            stats.matches(),
-            stats.wins,
-            stats.draws,
-            stats.losses,
-            stats.points()
+            team.name,
+            team.matches(),
+            team.wins,
+            team.draws,
+            team.losses,
+            team.points()
         ));
     }
     // sort results
