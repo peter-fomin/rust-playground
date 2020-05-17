@@ -24,11 +24,6 @@ pub struct Alphametic {
 impl Alphametic {
     fn new(mut operands: Vec<&str>) -> Self {
         // accepts the Vec of operands, the last one should be the sum of previous addends
-        // let letters: BTreeSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
-        // let letters: Vec<char> = letters.into_iter().collect();
-
-        
-
         let first_letters: BTreeSet<char> =
             operands.iter().map(|w| w.chars().next().unwrap()).collect();
 
@@ -36,16 +31,23 @@ impl Alphametic {
         let addends: Vec<Vec<char>> = operands.iter().map(|w| w.chars().rev().collect()).collect();
 
         let mut letters_at_position: Vec<BTreeSet<char>> = Vec::new();
-        for i in 0..sum.len() {
-            let mut letter_set: BTreeSet<char> = addends.iter().filter_map(|addend| addend.get(i)).map(|&c| c).collect();
+        for (i, _) in sum.iter().enumerate() {
+            let mut letter_set: BTreeSet<char> = addends
+                .iter()
+                .filter_map(|addend| addend.get(i))
+                .copied()
+                .collect();
             letter_set.insert(sum[i]);
-            for j in 0..i {
-                letter_set = letter_set.difference(&letters_at_position[j]).into_iter().map(|&c| c).collect();
+            for previous_set in letters_at_position.iter().take(i) {
+                letter_set = letter_set.difference(previous_set).copied().collect();
             }
             letters_at_position.push(letter_set);
         }
 
-        let letters: Vec<char> = letters_at_position.into_iter().flat_map(|pos| pos.into_iter()).collect();
+        let letters: Vec<char> = letters_at_position
+            .into_iter()
+            .flat_map(|pos| pos.into_iter())
+            .collect();
 
         let letter_digits = vec![0; letters.len()];
 
