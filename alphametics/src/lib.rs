@@ -74,7 +74,8 @@ impl<'a> Alphametic<'a> {
         match self.take_next_available_digit(letter_digit + 1) {
             Some(digit) => self.letter_digits[letter_index] = digit,
             None => {
-                if letter_index == 0 { // no more letters
+                if letter_index == 0 {
+                    // no more letters
                     return None;
                 }
                 self.increment_digit_at_index(letter_index - 1)?;
