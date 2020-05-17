@@ -102,26 +102,20 @@ impl Alphametic {
 
     fn is_proper_alphametic(&self) -> bool {
         // just precheck the sum of last letters in the word to improve speed
-        let check = self
-            .addends
-            .iter()
-            .fold(0, |acc, w| acc + self.get_letter_digit(w[0]))
-            % 10
-            == self.get_letter_digit(self.sum[0]);
-        if !check {
-            return check;
+        let mut sum = 0;
+        for (i, &s) in self.sum.iter().enumerate() {
+            sum = self
+                .addends
+                .iter()
+                .filter_map(|w| w.get(i))
+                .fold(sum, |acc, &c| acc + self.get_letter_digit(c));
+            let digit = sum % 10;
+            if digit != self.get_letter_digit(s) {
+                return false;
+            }
+            sum /= 10;
         }
-        // calculate left and right parts of the equation adn compare them
-        self.addends
-            .iter()
-            .fold(0, |acc, w| acc + self.calculate_word(w))
-            == self.calculate_word(&self.sum)
-    }
-
-    fn calculate_word(&self, word: &[char]) -> usize {
-        word.iter().enumerate().fold(0, |acc, (i, &c)| {
-            acc + (self.get_letter_digit(c)) * (10_usize).pow(i as u32)
-        })
+        true
     }
 
     fn get_letter_digit(&self, letter: char) -> usize {
