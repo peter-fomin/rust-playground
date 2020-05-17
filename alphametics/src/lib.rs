@@ -57,9 +57,7 @@ impl<'a> Alphametic<'a> {
         self.first_letters.insert(self.sum.chars().next().unwrap());
         // initialize letter_values
         for index in 0..self.letters.len() {
-            self.letter_digits[index] = self
-                .take_next_available_digit(self.letter_starting_digit(index))
-                .unwrap();
+            self.set_new_digit_for_letter_at(index);
         }
     }
 
@@ -84,8 +82,7 @@ impl<'a> Alphametic<'a> {
                     return None;
                 }
                 self.increment_digit_at_index(letter_index - 1)?;
-                self.letter_digits[letter_index] =
-                    self.take_next_available_digit(self.letter_starting_digit(letter_index))?;
+                self.set_new_digit_for_letter_at(letter_index);
             }
         }
         Some(())
@@ -130,12 +127,13 @@ impl<'a> Alphametic<'a> {
         self.letter_digits[letter_position]
     }
 
-    fn letter_starting_digit(&self, index: usize) -> usize {
-        if self.first_letters.contains(&self.letters[index]) {
+    fn set_new_digit_for_letter_at(&mut self, index: usize) {
+        let starting_digit = if self.first_letters.contains(&self.letters[index]) {
             1
         } else {
             0
-        }
+        };
+        self.letter_digits[index] = self.take_next_available_digit(starting_digit).unwrap();
     }
 }
 
