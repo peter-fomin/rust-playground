@@ -118,10 +118,9 @@ impl<'a> Alphametic<'a> {
     }
 
     fn letter_starting_digit(&self, index: usize) -> usize {
-        if self.first_letters.contains(&self.letters[index]) {
-            1
-        } else {
-            0
+        match self.first_letters.contains(&self.letters[index]) {
+            true => 1,
+            false => 0,
         }
     }
 }
