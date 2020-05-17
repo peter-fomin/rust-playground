@@ -21,10 +21,15 @@ pub struct Alphametic<'a> {
 }
 
 impl<'a> Alphametic<'a> {
-    fn new(addends: Vec<&'a str>, letters: Vec<char>, sum: &'a str) -> Self {
+    fn new(mut operands: Vec<&'a str>) -> Self {
+        // accepts the Vec of operands, the last one should be the sum of previous addends
+        let letters: HashSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
+        let mut letters: Vec<char> = letters.into_iter().collect();
+        letters.sort();
         let length = letters.len();
+        let sum = operands.pop().unwrap();
         let mut alphametic = Self {
-            addends,
+            addends: operands,
             letters,
             sum,
             letter_digits: vec![0; length],
@@ -126,8 +131,11 @@ impl<'a> Alphametic<'a> {
     }
 
     fn letter_starting_digit(&self, index: usize) -> usize {
-        if self.first_letters.contains(&self.letters[index]) {1}
-        else {0}
+        if self.first_letters.contains(&self.letters[index]) {
+            1
+        } else {
+            0
+        }
     }
 }
 
@@ -146,13 +154,9 @@ fn format_result(letters: &[char], digits: &[usize]) -> DigitMap {
 }
 
 fn parse_input(input: &str) -> Alphametic {
-    let mut addends: Vec<&str> = input
+    let operands: Vec<&str> = input
         .split(|c: char| !c.is_alphabetic())
         .filter(|w| !w.is_empty())
         .collect();
-    let sum = addends.pop().unwrap();
-    let letters: HashSet<char> = input.chars().filter(|c| c.is_alphabetic()).collect();
-    let mut letters: Vec<char> = letters.into_iter().collect();
-    letters.sort();
-    Alphametic::new(addends, letters, sum)
+    Alphametic::new(operands)
 }
