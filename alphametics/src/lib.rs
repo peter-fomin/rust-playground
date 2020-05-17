@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 
 type DigitMap = HashMap<char, u8>;
 
-pub struct Alphametic{
+pub struct Alphametic {
     // addends and letters are stored in reverse for direct letter access
     addends: Vec<Vec<char>>,
     letters: Vec<char>,
@@ -30,7 +30,8 @@ impl Alphametic {
 
         let letter_digits = vec![0; letters.len()];
 
-        let first_letters: HashSet<char> = operands.iter().map(|w| w.chars().next().unwrap()).collect();
+        let first_letters: HashSet<char> =
+            operands.iter().map(|w| w.chars().next().unwrap()).collect();
 
         let sum = operands.pop().unwrap().chars().rev().collect();
         let addends = operands.iter().map(|w| w.chars().rev().collect()).collect();
@@ -101,9 +102,11 @@ impl Alphametic {
 
     fn is_proper_alphametic(&self) -> bool {
         // just precheck the sum of last letters in the word to improve speed
-        let check = self.addends.iter().fold(0, |acc, w| {
-            acc + self.get_letter_digit(w[0])
-        }) % 10
+        let check = self
+            .addends
+            .iter()
+            .fold(0, |acc, w| acc + self.get_letter_digit(w[0]))
+            % 10
             == self.get_letter_digit(self.sum[0]);
         if !check {
             return check;
@@ -115,7 +118,7 @@ impl Alphametic {
             == self.calculate_word(&self.sum)
     }
 
-    fn calculate_word(&self, word: &Vec<char>) -> usize {
+    fn calculate_word(&self, word: &[char]) -> usize {
         word.iter().enumerate().fold(0, |acc, (i, &c)| {
             acc + (self.get_letter_digit(c)) * (10_usize).pow(i as u32)
         })
