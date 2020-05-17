@@ -12,7 +12,7 @@ use std::collections::{HashMap, HashSet};
 type DigitMap = HashMap<char, u8>;
 
 pub struct Alphametic {
-    // addends and letters are stored in reverse for direct letter access
+    // addends and letters are stored in reverse order for direct letter access
     addends: Vec<Vec<char>>,
     letters: Vec<char>,
     sum: Vec<char>,
@@ -101,7 +101,7 @@ impl Alphametic {
     }
 
     fn is_proper_alphametic(&self) -> bool {
-        // just precheck the sum of last letters in the word to improve speed
+        // for every digit calculate a sum and compare it with the corresponding digit in the self.sum
         let mut sum = 0;
         for (i, &s) in self.sum.iter().enumerate() {
             sum = self
