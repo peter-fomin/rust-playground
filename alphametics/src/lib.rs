@@ -11,32 +11,45 @@ use std::collections::{HashMap, HashSet};
 
 type DigitMap = HashMap<char, u8>;
 
-pub struct Alphametic<'a> {
-    addends: Vec<&'a str>,
+pub struct Alphametic{
+    // addends and letters are stored in reverse for direct letter access
+    addends: Vec<Vec<char>>,
     letters: Vec<char>,
-    sum: &'a str,
+    sum: Vec<char>,
     letter_digits: Vec<usize>,
     digit_store: [Option<usize>; 10],
     first_letters: HashSet<char>,
 }
 
-impl<'a> Alphametic<'a> {
-    fn new(mut operands: Vec<&'a str>) -> Self {
+impl Alphametic {
+    fn new(mut operands: Vec<&str>) -> Self {
         // accepts the Vec of operands, the last one should be the sum of previous addends
         let letters: HashSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
         let mut letters: Vec<char> = letters.into_iter().collect();
         letters.sort();
-        let length = letters.len();
-        let sum = operands.pop().unwrap();
+
+        let letter_digits = vec![0; letters.len()];
+
+        let first_letters: HashSet<char> = operands.iter().map(|w| w.chars().next().unwrap()).collect();
+
+        let sum = operands.pop().unwrap().chars().rev().collect();
+        let addends = operands.iter().map(|w| w.chars().rev().collect()).collect();
+
+        let mut digit_store = [None; 10];
+        (0..10).for_each(|i| digit_store[i] = Some(i));
+
         let mut alphametic = Self {
-            addends: operands,
+            addends,
             letters,
             sum,
-            letter_digits: vec![0; length],
-            digit_store: [None; 10],
-            first_letters: HashSet::new(),
+            letter_digits,
+            digit_store,
+            first_letters,
         };
-        alphametic.initialize();
+
+        for index in 0..alphametic.letters.len() {
+            alphametic.set_new_digit_for_letter_at(index);
+        }
         alphametic
     }
 
@@ -45,20 +58,6 @@ impl<'a> Alphametic<'a> {
             self.increment_digits()?;
         }
         Some((&self.letters, &self.letter_digits))
-    }
-
-    fn initialize(&mut self) {
-        // populate value_state
-        (0..10).for_each(|i| self.digit_store[i] = Some(i));
-        // populate first_letters
-        for addend in &self.addends {
-            self.first_letters.insert(addend.chars().next().unwrap());
-        }
-        self.first_letters.insert(self.sum.chars().next().unwrap());
-        // initialize letter_values
-        for index in 0..self.letters.len() {
-            self.set_new_digit_for_letter_at(index);
-        }
     }
 
     fn increment_digits(&mut self) -> Option<()> {
@@ -103,9 +102,9 @@ impl<'a> Alphametic<'a> {
     fn is_proper_alphametic(&self) -> bool {
         // just precheck the sum of last letters in the word to improve speed
         let check = self.addends.iter().fold(0, |acc, w| {
-            acc + self.get_letter_digit(w.chars().last().unwrap())
+            acc + self.get_letter_digit(w[0])
         }) % 10
-            == self.get_letter_digit(self.sum.chars().last().unwrap());
+            == self.get_letter_digit(self.sum[0]);
         if !check {
             return check;
         }
@@ -113,11 +112,11 @@ impl<'a> Alphametic<'a> {
         self.addends
             .iter()
             .fold(0, |acc, w| acc + self.calculate_word(w))
-            == self.calculate_word(self.sum)
+            == self.calculate_word(&self.sum)
     }
 
-    fn calculate_word(&self, word: &str) -> usize {
-        word.chars().rev().enumerate().fold(0, |acc, (i, c)| {
+    fn calculate_word(&self, word: &Vec<char>) -> usize {
+        word.iter().enumerate().fold(0, |acc, (i, &c)| {
             acc + (self.get_letter_digit(c)) * (10_usize).pow(i as u32)
         })
     }
