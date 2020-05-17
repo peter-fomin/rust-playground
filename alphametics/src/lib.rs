@@ -7,7 +7,7 @@
 // digit_store array and also be returned later.
 // Letters are stored in letters Vec, their corresponding digits are stored in letter_digits Vec.
 // first_letters contains letters that cannot be zero due to being the first letter in the word.
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, BTreeSet};
 
 type DigitMap = HashMap<char, u8>;
 
@@ -18,23 +18,22 @@ pub struct Alphametic {
     sum: Vec<char>,
     letter_digits: Vec<usize>,
     digit_store: [Option<usize>; 10],
-    first_letters: HashSet<char>,
+    first_letters: BTreeSet<char>,
 }
 
 impl Alphametic {
     fn new(mut operands: Vec<&str>) -> Self {
         // accepts the Vec of operands, the last one should be the sum of previous addends
-        let letters: HashSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
-        let mut letters: Vec<char> = letters.into_iter().collect();
-        letters.sort();
+        let letters: BTreeSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
+        let letters: Vec<char> = letters.into_iter().collect();
 
         let letter_digits = vec![0; letters.len()];
 
-        let first_letters: HashSet<char> =
+        let first_letters: BTreeSet<char> =
             operands.iter().map(|w| w.chars().next().unwrap()).collect();
 
-        let sum = operands.pop().unwrap().chars().rev().collect();
-        let addends = operands.iter().map(|w| w.chars().rev().collect()).collect();
+        let sum: Vec<char> = operands.pop().unwrap().chars().rev().collect();
+        let addends: Vec<Vec<char>> = operands.iter().map(|w| w.chars().rev().collect()).collect();
 
         let mut digit_store = [None; 10];
         (0..10).for_each(|i| digit_store[i] = Some(i));
