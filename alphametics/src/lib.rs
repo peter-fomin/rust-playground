@@ -7,7 +7,7 @@
 // digit_store array and also be returned later.
 // Letters are stored in letters Vec, their corresponding digits are stored in letter_digits Vec.
 // first_letters contains letters that cannot be zero due to being the first letter in the word.
-use std::collections::{HashMap, BTreeSet};
+use std::collections::{BTreeSet, HashMap};
 
 type DigitMap = HashMap<char, u8>;
 
