@@ -24,16 +24,30 @@ pub struct Alphametic {
 impl Alphametic {
     fn new(mut operands: Vec<&str>) -> Self {
         // accepts the Vec of operands, the last one should be the sum of previous addends
-        let letters: BTreeSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
-        let letters: Vec<char> = letters.into_iter().collect();
+        // let letters: BTreeSet<char> = operands.iter().flat_map(|w| w.chars()).collect();
+        // let letters: Vec<char> = letters.into_iter().collect();
 
-        let letter_digits = vec![0; letters.len()];
+        
 
         let first_letters: BTreeSet<char> =
             operands.iter().map(|w| w.chars().next().unwrap()).collect();
 
         let sum: Vec<char> = operands.pop().unwrap().chars().rev().collect();
         let addends: Vec<Vec<char>> = operands.iter().map(|w| w.chars().rev().collect()).collect();
+
+        let mut letters_at_position: Vec<BTreeSet<char>> = Vec::new();
+        for i in 0..sum.len() {
+            let mut letter_set: BTreeSet<char> = addends.iter().filter_map(|addend| addend.get(i)).map(|&c| c).collect();
+            letter_set.insert(sum[i]);
+            for j in 0..i {
+                letter_set = letter_set.difference(&letters_at_position[j]).into_iter().map(|&c| c).collect();
+            }
+            letters_at_position.push(letter_set);
+        }
+
+        let letters: Vec<char> = letters_at_position.into_iter().flat_map(|pos| pos.into_iter()).collect();
+
+        let letter_digits = vec![0; letters.len()];
 
         let mut digit_store = [None; 10];
         (0..10).for_each(|i| digit_store[i] = Some(i));
@@ -118,7 +132,7 @@ impl Alphametic {
     }
 
     fn get_letter_digit(&self, letter: char) -> usize {
-        let letter_position = self.letters.binary_search(&letter).unwrap();
+        let letter_position = self.letters.iter().position(|&c| c == letter).unwrap();
         self.letter_digits[letter_position]
     }
 
