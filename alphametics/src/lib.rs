@@ -60,7 +60,7 @@ impl<'a> Alphametic<'a> {
 
     fn increment_digits(&mut self) -> Option<()> {
         // increment letter_values starting from the last index
-        // if we incremented through all possible value we return None
+        // if we incremented through all possible values we return None
         let last_index = self.letters.len() - 1;
         self.increment_digit_at_index(last_index)?;
         Some(())
@@ -99,6 +99,14 @@ impl<'a> Alphametic<'a> {
     }
 
     fn is_proper_alphametic(&self) -> bool {
+        // just precheck the sum of last letters in the word to improve speed
+        let check = self.addends.iter().fold(0, |acc, w| {
+            acc + self.get_letter_digit(w.chars().last().unwrap())
+        }) % 10
+            == self.get_letter_digit(self.sum.chars().last().unwrap());
+        if !check {
+            return check;
+        }
         // calculate left and right parts of the equation adn compare them
         self.addends
             .iter()
@@ -118,10 +126,8 @@ impl<'a> Alphametic<'a> {
     }
 
     fn letter_starting_digit(&self, index: usize) -> usize {
-        match self.first_letters.contains(&self.letters[index]) {
-            true => 1,
-            false => 0,
-        }
+        if self.first_letters.contains(&self.letters[index]) {1}
+        else {0}
     }
 }
 
