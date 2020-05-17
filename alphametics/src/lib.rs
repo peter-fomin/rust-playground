@@ -126,7 +126,7 @@ impl<'a> Alphametic<'a> {
     }
 
     fn get_letter_digit(&self, letter: char) -> usize {
-        let letter_position = self.letters.iter().position(|&c| c == letter).unwrap();
+        let letter_position = self.letters.binary_search(&letter).unwrap();
         self.letter_digits[letter_position]
     }
 
