@@ -12,13 +12,14 @@ use std::collections::{BTreeSet, HashMap};
 type DigitMap = HashMap<char, u8>;
 
 pub struct Alphametic {
-    // addends and letters are stored in reverse order for direct letter access
+    // addends and sum are stored in reverse order for direct letter access
     addends: Vec<Vec<char>>,
     letters: Vec<char>,
     sum: Vec<char>,
     letter_digits: Vec<usize>,
     digit_store: [Option<usize>; 10],
     first_letters: BTreeSet<char>,
+    position_end: Vec<usize>,
 }
 
 impl Alphametic {
@@ -30,7 +31,8 @@ impl Alphametic {
         let sum: Vec<char> = operands.pop().unwrap().chars().rev().collect();
         let addends: Vec<Vec<char>> = operands.iter().map(|w| w.chars().rev().collect()).collect();
 
-        let mut letters_at_position: Vec<BTreeSet<char>> = Vec::new();
+        // vector to hold all unique letters per digit position counting from the least significant
+        let mut unique_letters: Vec<BTreeSet<char>> = Vec::new();
         for (i, _) in sum.iter().enumerate() {
             let mut letter_set: BTreeSet<char> = addends
                 .iter()
@@ -38,13 +40,15 @@ impl Alphametic {
                 .copied()
                 .collect();
             letter_set.insert(sum[i]);
-            for previous_set in letters_at_position.iter().take(i) {
+            for previous_set in unique_letters.iter().take(i) {
                 letter_set = letter_set.difference(previous_set).copied().collect();
             }
-            letters_at_position.push(letter_set);
+            unique_letters.push(letter_set);
         }
 
-        let letters: Vec<char> = letters_at_position
+        let position_end: Vec<usize> = unique_letters.iter().scan(0, |s, row| {*s += row.len(); Some(*s)}).collect();
+
+        let letters: Vec<char> = unique_letters
             .into_iter()
             .flat_map(|pos| pos.into_iter())
             .collect();
@@ -54,34 +58,79 @@ impl Alphametic {
         let mut digit_store = [None; 10];
         (0..10).for_each(|i| digit_store[i] = Some(i));
 
-        let mut alphametic = Self {
+        Self {
             addends,
             letters,
             sum,
             letter_digits,
             digit_store,
             first_letters,
-        };
-
-        for index in 0..alphametic.letters.len() {
-            alphametic.set_new_digit_for_letter_at(index);
+            position_end,
         }
-        alphametic
     }
 
     pub fn solve(&mut self) -> Option<(&Vec<char>, &Vec<usize>)> {
-        while !self.is_proper_alphametic() {
-            self.increment_digits()?;
-        }
+        self.solve_position(0, 0)?;
         Some((&self.letters, &self.letter_digits))
     }
 
-    fn increment_digits(&mut self) -> Option<()> {
-        // increment letter_values starting from the last index
-        // if we incremented through all possible values we return None
-        let last_index = self.letters.len() - 1;
-        self.increment_digit_at_index(last_index)?;
-        Some(())
+    fn solve_position(&mut self, position: usize, accumulator: usize) -> Option<()> {
+        if position == self.sum.len() {
+            return Some(());
+        }
+        // let position_length = self.letters_at_position[position];
+        self.init_position(position);
+        let mut sum;
+        loop {
+            sum = self.addends.iter().filter_map(|w| w.get(position)).fold(accumulator, |acc, &c| acc + self.get_letter_digit(c));
+            if sum % 10 == self.get_letter_digit(self.sum[position]) {
+                if let Some(_) = self.solve_position(position + 1, sum / 10) {
+                    return Some(());
+                }
+            }
+            if let None = self.increment_position(position) {
+                self.deinit_position(position);
+                return None;
+            }
+        }
+    }
+
+    fn increment_position(&mut self, position: usize) -> Option<()> {
+        let (pos_start, pos_end) = self.position_parameters(position);
+        for index in (pos_start..pos_end).rev() {
+            if let Some(_) = self.increment_digit_at_index(index) {
+                for i in (index + 1)..pos_end {
+                    self.set_new_digit_for_letter_at(i);
+                }
+                return Some(());
+            }
+        }
+        None
+    }
+
+    fn init_position(&mut self, position: usize) {
+        let (pos_start, pos_end) = self.position_parameters(position);
+        for letter_index in pos_start..pos_end {
+            self.set_new_digit_for_letter_at(letter_index);
+        }
+    }
+
+    fn deinit_position(&mut self, position: usize) {
+        let (pos_start, pos_end) = self.position_parameters(position);
+        for letter_index in pos_start..pos_end {
+            let value = self.letter_digits[letter_index];
+            self.digit_store[value] = Some(value);
+        }
+    }
+
+    fn position_parameters(&self, position: usize) -> (usize, usize) {
+        let position_start = if position == 0 {
+            0
+        } else {
+            self.position_end[position - 1]
+        };
+        let position_end = self.position_end[position];
+        (position_start, position_end)
     }
 
     fn increment_digit_at_index(&mut self, letter_index: usize) -> Option<()> {
@@ -89,18 +138,12 @@ impl Alphametic {
         // put the digit back
         self.digit_store[letter_digit] = Some(letter_digit);
         // try to take the next one
-        match self.take_next_available_digit(letter_digit + 1) {
-            Some(digit) => self.letter_digits[letter_index] = digit,
-            None => {
-                if letter_index == 0 {
-                    // no more letters
-                    return None;
-                }
-                self.increment_digit_at_index(letter_index - 1)?;
-                self.set_new_digit_for_letter_at(letter_index);
-            }
+        if let Some(digit) = self.take_next_available_digit(letter_digit + 1) {
+            self.letter_digits[letter_index] = digit;
+            Some(())
+        } else {
+            None
         }
-        Some(())
     }
 
     fn take_next_available_digit(&mut self, mut digit: usize) -> Option<usize> {
@@ -113,24 +156,6 @@ impl Alphametic {
                 None => digit += 1,
             }
         }
-    }
-
-    fn is_proper_alphametic(&self) -> bool {
-        // for every digit calculate a sum and compare it with the corresponding digit in the self.sum
-        let mut sum = 0;
-        for (i, &s) in self.sum.iter().enumerate() {
-            sum = self
-                .addends
-                .iter()
-                .filter_map(|w| w.get(i))
-                .fold(sum, |acc, &c| acc + self.get_letter_digit(c));
-            let digit = sum % 10;
-            if digit != self.get_letter_digit(s) {
-                return false;
-            }
-            sum /= 10;
-        }
-        true
     }
 
     fn get_letter_digit(&self, letter: char) -> usize {
