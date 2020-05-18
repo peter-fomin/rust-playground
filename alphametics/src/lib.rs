@@ -1,12 +1,14 @@
 // This is a solution to alphametic exercise as described in README.md.
-// To achieve that we just bruteforce through all possible variants. It could have been done
-// with a use of external crate to generate possible permutations, and I think it would have
-// been faster, but I tried to implement that myself.
-// The main idea is to use array of Option<usize> called digit_store. Since two letters can not
-// represent the same digit for a digit to be put into letter_digits Vec it has to be taken from
-// digit_store array and also be returned later.
-// Letters are stored in letters Vec, their corresponding digits are stored in letter_digits Vec.
-// first_letters contains letters that cannot be zero due to being the first letter in the word.
+// To achieve that we implement an algorithm that solves the alphametic by position:
+// from the least significant to the most significant. It works much faster than a simple
+// bruteforce algorithm.
+// The main idea to deal with a no same digit for different letters rule was to use
+// an Option<usize> array, called :digit_store:. When we take a digit for some letter from this
+// array we leave None there, and when we no longer need that digit we just return it back.
+// Letters are stored in a Vec, called :letters:. Letters in it are sorted by position (least
+// significat are first). Corresponding digits to a letter are stored in letter_digits Vec.
+// Set called :first_letters: is used to check that those letters cannot be a 0 digit.
+// Vec called :position_delimiter: takes an account of which letters correspond to which position.
 use std::collections::{BTreeSet, HashMap};
 
 type DigitMap = HashMap<char, u8>;
@@ -19,12 +21,12 @@ pub struct Alphametic {
     letter_digits: Vec<usize>,
     digit_store: [Option<usize>; 10],
     first_letters: BTreeSet<char>,
-    position_end: Vec<usize>,
+    position_delimeter: Vec<usize>,
 }
 
 impl Alphametic {
     fn new(mut operands: Vec<&str>) -> Self {
-        // accepts the Vec of operands, the last one should be the sum of previous addends
+        // accepts the Vec of operands, the last operand is a sum of previous operands
         let first_letters: BTreeSet<char> =
             operands.iter().map(|w| w.chars().next().unwrap()).collect();
 
@@ -32,7 +34,7 @@ impl Alphametic {
         let addends: Vec<Vec<char>> = operands.iter().map(|w| w.chars().rev().collect()).collect();
 
         // vector to hold all unique letters per digit position counting from the least significant
-        let mut unique_letters: Vec<BTreeSet<char>> = Vec::new();
+        let mut unique_position_letters: Vec<BTreeSet<char>> = Vec::new();
         for (i, _) in sum.iter().enumerate() {
             let mut letter_set: BTreeSet<char> = addends
                 .iter()
@@ -40,17 +42,22 @@ impl Alphametic {
                 .copied()
                 .collect();
             letter_set.insert(sum[i]);
-            for previous_set in unique_letters.iter().take(i) {
+            for previous_set in unique_position_letters.iter().take(i) {
                 letter_set = letter_set.difference(previous_set).copied().collect();
             }
-            unique_letters.push(letter_set);
+            unique_position_letters.push(letter_set);
         }
 
-        let position_end: Vec<usize> = unique_letters.iter().scan(0, |s, row| {*s += row.len(); Some(*s)}).collect();
+        let position_delimeter: Vec<usize> = std::iter::once(0)
+            .chain(unique_position_letters.iter().scan(0, |s, row| {
+                *s += row.len();
+                Some(*s)
+            }))
+            .collect();
 
-        let letters: Vec<char> = unique_letters
+        let letters: Vec<char> = unique_position_letters
             .into_iter()
-            .flat_map(|pos| pos.into_iter())
+            .flat_map(|row| row.into_iter())
             .collect();
 
         let letter_digits = vec![0; letters.len()];
@@ -65,47 +72,60 @@ impl Alphametic {
             letter_digits,
             digit_store,
             first_letters,
-            position_end,
+            position_delimeter,
         }
     }
 
     pub fn solve(&mut self) -> Option<(&Vec<char>, &Vec<usize>)> {
-        self.solve_position(0, 0)?;
-        Some((&self.letters, &self.letter_digits))
+        if self.try_solve_position(0, 0) {
+            Some((&self.letters, &self.letter_digits))
+        } else {
+            None
+        }
     }
 
-    fn solve_position(&mut self, position: usize, accumulator: usize) -> Option<()> {
+    fn try_solve_position(&mut self, position: usize, accumulator: usize) -> bool {
+        // Here the main logic resides
         if position == self.sum.len() {
-            return Some(());
+            return true;
         }
-        // let position_length = self.letters_at_position[position];
         self.init_position(position);
         let mut sum;
         loop {
-            sum = self.addends.iter().filter_map(|w| w.get(position)).fold(accumulator, |acc, &c| acc + self.get_letter_digit(c));
-            if sum % 10 == self.get_letter_digit(self.sum[position]) {
-                if let Some(_) = self.solve_position(position + 1, sum / 10) {
-                    return Some(());
-                }
+            sum = self
+                .addends
+                .iter()
+                .filter_map(|w| w.get(position))
+                .fold(accumulator, |acc, &c| acc + self.get_letter_digit(c));
+            if sum % 10 == self.get_letter_digit(self.sum[position])
+                && self.try_solve_position(position + 1, sum / 10)
+            {
+                // if position is good we check recursively the next one
+                return true;
             }
-            if let None = self.increment_position(position) {
+            // if it is not we try incrementing it
+            if !self.try_increment_position(position) {
+                // if we are unable to increment we return digits back and return to the previous position level
                 self.deinit_position(position);
-                return None;
+                return false;
             }
         }
     }
 
-    fn increment_position(&mut self, position: usize) -> Option<()> {
+    fn try_increment_position(&mut self, position: usize) -> bool {
         let (pos_start, pos_end) = self.position_parameters(position);
         for index in (pos_start..pos_end).rev() {
-            if let Some(_) = self.increment_digit_at_index(index) {
+            // try to increment digits in reverse order
+            if self.try_increment_digit_at_index(index) {
+                // if successful reinitialize all digits that failed before the current index and return true
                 for i in (index + 1)..pos_end {
                     self.set_new_digit_for_letter_at(i);
                 }
-                return Some(());
+                return true;
             }
         }
-        None
+        // if not successfull just return false
+        false
     }
 
     fn init_position(&mut self, position: usize) {
@@ -124,25 +144,22 @@ impl Alphametic {
     }
 
     fn position_parameters(&self, position: usize) -> (usize, usize) {
-        let position_start = if position == 0 {
-            0
-        } else {
-            self.position_end[position - 1]
-        };
-        let position_end = self.position_end[position];
-        (position_start, position_end)
+        (
+            self.position_delimeter[position],
+            self.position_delimeter[position + 1],
+        )
     }
 
-    fn increment_digit_at_index(&mut self, letter_index: usize) -> Option<()> {
+    fn try_increment_digit_at_index(&mut self, letter_index: usize) -> bool {
         let letter_digit = self.letter_digits[letter_index];
         // put the digit back
         self.digit_store[letter_digit] = Some(letter_digit);
         // try to take the next one
         if let Some(digit) = self.take_next_available_digit(letter_digit + 1) {
             self.letter_digits[letter_index] = digit;
-            Some(())
+            true
         } else {
-            None
+            false
         }
     }
 
