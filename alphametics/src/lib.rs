@@ -55,6 +55,7 @@ impl Alphametic {
             }))
             .collect();
 
+        // it is important for letters to be stored in that very order
         let letters: Vec<char> = unique_position_letters
             .into_iter()
             .flat_map(|row| row.into_iter())
