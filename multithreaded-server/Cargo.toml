@@ -1,0 +1,17 @@
+[package]
+name = "multithreaded-server"
+version = "0.1.0"
+authors = ["Peter Fomin <petenmail@rambler.ru>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "thread_pool"
+path = "src/lib.rs"
+
+[[bin]]
+name = "server"
+path = "src/bin/main.rs"
+
+[dependencies]
